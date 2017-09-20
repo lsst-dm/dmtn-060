@@ -5,23 +5,27 @@
 #. :ref:`rucio-testbed`
 #. :ref:`rucio-service`
 #. :ref:`rucio-rse1`
-
+#. :ref:`rucio-rsep`
+#. :ref:`rucio-rseg`
+#. :ref:`rucio-client`
 
 .. _rucio-intro:
 
 Introduction
 ============
 
-From the ATLAS project documentation, the Rucio project is the new version of ATLAS Distributed Data Management (DDM) system services. Rucio is used to manage accounts, files, datasets and distributed storage systems.  The DDM system manages LHC data within a heterogeneous distributed environment, and has demonstrated very large scale data managemnent: 1 billion file replicas and 255 PB across 130 sites. 
+From the ATLAS project `Rucio documentation <https://media.readthedocs.org/pdf/rucio/master/rucio.pdf>`_,
+the Rucio project is the new version of ATLAS Distributed Data Management (DDM) system services. 
+Rucio is used to manage accounts, files, datasets and distributed storage systems.  The DDM system manages LHC data within a heterogeneous distributed environment, and has demonstrated very large scale data managemnent: 1 billion file replicas and 255 PB across 130 sites. 
 
 In our first examination we consider the installation, configuration, and testing of the main Rucio service and supporting database, Rucio Storage Elements (RSEs),  and Rucio client utilities. In particular we are interested to discover if there are inordinate challenges and/or barriers in installing and testing software such as Rucio from the ATLAS project outside of that ecosystem and within our prototype infrastructure. 
 
 .. _rucio-testbed:
 
-Testbed within NCSA vSphere Environment
-=======================================
+Testbed within NCSA LSST vSphere Environment
+============================================
 
-The Rucio testing is performed within a testbed of VMs in our vSphere environment::
+The Rucio testing is performed within a testbed of VMs in the NCSA LSST vSphere environment::
 
     lsst-dbb-rucio.ncsa.illinois.edu
     lsst-dbb-mq.ncsa.illinois.edu
@@ -102,8 +106,10 @@ as a list of supported protocols, e.g., file, https, gsiftp, xrootd, srm, etc.
 The definition of the protocol has a :command:`prefix` that, for example, may specify the root directory
 of the relevant storage area.  
 
+.. _rucio-rsep:
+
 RSE with Posix protocol
------------------------
+=======================
 
 We start with a simple case defining an RSE with file/posix protocol on the main 
 :file:`lsst-dbb-rucio.ncsa.illinois.edu` server itself. 
@@ -116,7 +122,6 @@ within Rucio database tables by using some brief scripting::
         from rucio.core.rse import add_protocol
         from rucio.core.rse import add_rse
         from rucio.core.rse import add_rse_attribute
-        from rucio.core.distance import add_distance
         from rucio.core.rse import list_rses
 
         dbb_posix = {   'hostname': 'lsst-dbb-rucio.ncsa.illinois.edu',
@@ -131,7 +136,8 @@ within Rucio database tables by using some brief scripting::
 
         add_protocol('MOCK1', parameter=dbb_posix)
 
-We can use the :command:`rucio-admin` and :command:`rucio` command line clients to interact with the RSE::
+We can use the :command:`rucio-admin` and :command:`rucio` command line clients to administer
+and perform listings related to with the RSE::
 
         # echo $RUCIO_ACCOUNT
         root
@@ -190,8 +196,128 @@ of the existing fie replicas for a regsitered file::
         +-----------+------------+------------+-----------+----------------------------------------------------------------------------------------------+
 
 
+.. _rucio-rseg:
 
-.. .. rubric:: References
+RSE with gsiftp protocol
+========================
+
+In order to demonstrate a more generally usable, accessible Rucio storage element, we consider 
+an instance  based on gsiftp protocol. This RSE will support, for example, upload and download
+from various remote hosts (i.e., clients other than the main Rucio server).  To achieve this 
+we install a 
+`globus-gridftp-server <https://opensciencegrid.github.io/docs/data/gridftp/>`_
+as available from the 
+`Open Science Grid <https://www.opensciencegrid.org/>`_
+`yum repositories <https://opensciencegrid.github.io/docs/common/yum/>`_ 
+utlizing the testbed machine :file:`lsst-dbb-fts1.ncsa.illinois.edu` as the installation host.
+It is efficient to install the OSG service as it has ready support 
+for the Adler32 checksum algorithm that Rucio utilizes::
+
+        # uberftp lsst-dbb-fts1.ncsa.illinois.edu
+        220 lsst-dbb-fts1.ncsa.illinois.edu GridFTP Server 11.8 (gcc64, 1477634051-85) [Globus Toolkit 6.0] ready.
+        230 User daues logged in.
+        UberFTP (2.8)> quote cksm Adler32 0 -1 /tmp/hello_world
+        213 3880065f
+
+The RSE can be defined within the Rucio system using some brief scripting that loads
+entries into appropriate database tables::
+
+        #!/usr/bin/env python
+        
+        from rucio.core.rse import add_protocol
+        from rucio.core.rse import add_rse
+        from rucio.core.rse import add_rse_attribute
+        from rucio.core.rse import list_rses
+        
+        dbb_gsiftp = {  'hostname': 'lsst-dbb-fts1.ncsa.illinois.edu',
+                        'scheme':   'gsiftp',
+                        'port':   '2811',
+                        'prefix': '/usr/local/data',
+                        'impl': 'rucio.rse.protocols.gfal.Default',
+                        'domains': {"lan": {"read": 1, "write": 1, "delete": 1},
+                                    "wan": {"read": 1, "write": 1, "delete": 1} } }
+        add_rse('NCSA_DATADISK')
+        add_protocol('NCSA_DATADISK', parameter=dbb_gsiftp)
+
+We can upload a file :file:`Calib05.fits` into the Rucio system, targeting this RSE and a Dataset user.root:upload5Cal::
+
+
+        # rucio  upload --rse NCSA_DATADISK  --summary  user.root:upload5Cal Calib05.fits
+        2017-09-04 20:30:27,542 WARNING user.root:upload5Cal cannot be distinguished from scope:datasetname. Skipping it.
+        2017-09-04 20:30:28,332 INFO    Dataset successfully created
+        2017-09-04 20:30:28,935 INFO    Adding replicas in Rucio catalog
+        2017-09-04 20:30:29,683 INFO    Replicas successfully added
+        2017-09-04 20:30:29,964 INFO    File user.root:Calib05.fits successfully uploaded on the storage
+        2017-09-04 20:30:29,964 23024   INFO    File user.root:Calib05.fits successfully uploaded on the storage
+ 
+The physical file name (PFN) of the replica in this RSE can be displayed with::
+
+        # rucio list-file-replicas  user.root:upload5Cal
+        +-----------+--------------+------------+-----------+----------------------------------------------------------------------------------------------------------+
+        | SCOPE     | NAME         | FILESIZE   | ADLER32   | RSE: REPLICA                                                                                             |
+        |-----------+--------------+------------+-----------+----------------------------------------------------------------------------------------------------------|
+        | user.root | Calib05.fits | 5.825 kB   | cbf8eff3  | NCSA_DATADISK: gsiftp://lsst-dbb-fts1.ncsa.illinois.edu:2811/usr/local/data/user/root/ab/38/Calib05.fits |
+        +-----------+--------------+------------+-----------+----------------------------------------------------------------------------------------------------------+
+
+.. _rucio-client:
+
+Rucio Client Installation
+=========================
+
+While the main Rucio server :file:`lsst-dbb-rucio.ncsa.illinois.edu` runs the central web application and numerous Rucio daemons
+(and the supporting database in our testbed), we would like to verify that a system serving as a Rucio client can function 
+with relatively lightweight installation and configuration. Utilizing a fairly minimal CentOS7 instance within the NCSA Nebula OpenStack,
+we observe that clients can be set up with a few steps::
+
+        # yum -y install gcc python-devel openssl-devel
+        # yum -y install epel-release
+        # yum -y install python-pip
+        # pip install --upgrade pip
+        # pip install rucio-clients
+
+        # yum -y install gfal2-devel gfal2-util gfal2-all
+
+The `gfal2 <https://dmc.web.cern.ch/projects/gfal-2/home>`_ (Grid File Access Library) of CERN
+is a library that is described to provide an abstraction layer over grid storage system complexity.
+It simplifies file operations within a distributed environment by hiding complexity behind a simple posix API.
+The installation of :file:`gfal2-all` will install a collection of plugins that can handle
+a variety of transfer protocols that one may wish to use within Rucio client operations
+(e.g., upload, download, etc)::
+
+        gfal2-plugin-dcap
+        gfal2-plugin-file
+        gfal2-plugin-gridftp
+        gfal2-plugin-http
+        gfal2-plugin-lfc7
+        gfal2-plugin-rfio
+        gfal2-plugin-sftp
+        gfal2-plugin-srm
+        gfal2-plugin-xrootd
+
+In principle only the plugins for protocols to be used on a given client are required, though
+they are bundled conveniently within :file:`gfal2-all`.  As such a system can undergo setup 
+and configuration to serve as a Rucio client in a quick, lightweight manner. An example download
+from our Nebula instance proceeds::
+
+        # rucio download user.root:Flat01.fits
+        2017-09-07 04:44:02,863 INFO    Using rucio downloader...
+        2017-09-07 04:44:02,863 INFO    Thread 1/1 : Starting the download of user.root:Flat01.fits
+        2017-09-07 04:44:03,641 INFO    Thread 1/1 : File user.root:Flat01.fits trying from NCSA_DATADISK
+        2017-09-07 04:44:03,972 INFO    Thread 1/1 : File user.root:Flat01.fits successfully downloaded from NCSA_DATADISK
+        2017-09-07 04:44:04,798 INFO    Thread 1/1 : File user.root:Flat01.fits successfully downloaded. 4.807 kB in 1.93 seconds = 0.0 MBps
+        ----------------------------------
+        Download summary
+        ----------------------------------------
+        DID user.root:Flat01.fits
+        Total files :                                 1
+        Downloaded files :                            1
+        Files already found locally :                 0
+        Files that cannot be downloaded :             0
+
+
+
+
+
 
 .. Make in-text citations with: :cite:`bibkey`.
 
