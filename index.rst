@@ -1,29 +1,33 @@
 
 .. Add content here.
 
-#. :ref:`rucio-intro`
-#. :ref:`rucio-testbed`
-#. :ref:`rucio-service`
-#. :ref:`rucio-rse1`
-#. :ref:`rucio-rsep`
-#. :ref:`rucio-rseg`
-#. :ref:`rucio-client`
+Outline
+=======
 
-.. _rucio-intro:
+#. Rucio
+#. FTS3
+#. IRODS
+#. Globus
+#. Grid Community Toolkit
+
+
+Rucio
+=====
 
 Introduction
-============
+------------
 
-From the ATLAS project `Rucio documentation <https://media.readthedocs.org/pdf/rucio/master/rucio.pdf>`_,
-the Rucio project is the new version of ATLAS Distributed Data Management (DDM) system services. 
-Rucio is used to manage accounts, files, datasets and distributed storage systems.  The DDM system manages LHC data within a heterogeneous distributed environment, and has demonstrated very large scale data managemnent: 1 billion file replicas and 255 PB across 130 sites. 
+Rucio is a project that provides services and associated libraries for allowing scientific 
+collaborations to manage large volumes of data spread across facilities 
+at multiple institutions and organisations. 
+Rucio has been developed by the ATLAS experiment.
+Rucio is used to manage accounts, files, datasets and distributed storage systems.  
+The DDM system manages LHC data within a heterogeneous distributed environment, and has demonstrated very large scale data managemnent: 1 billion file replicas and 255 PB across 130 sites. 
 
 In our first examination we consider the installation, configuration, and testing of the main Rucio service and supporting database, Rucio Storage Elements (RSEs),  and Rucio client utilities. In particular we are interested to discover if there are inordinate challenges and/or barriers in installing and testing software such as Rucio from the ATLAS project outside of that ecosystem and within our prototype infrastructure. 
 
-.. _rucio-testbed:
-
 Testbed within NCSA LSST vSphere Environment
-============================================
+--------------------------------------------
 
 The Rucio testing is performed within a testbed of VMs in the NCSA LSST vSphere environment::
 
@@ -38,10 +42,8 @@ and possibly one-off installations, and considers issues of systematic installat
 maintenance (e.g., automatic updates, firewalls, etc). 
 
 
-.. _rucio-service:
-
 Rucio Service and Daemons 
-=========================
+-------------------------
 
 The installation of the main Rucio service entails the :command:`yum install` of several dependencies, while
 Rucio itself can proceed via :command:`pip install rucio`. The version of the software that we currently use is
@@ -95,10 +97,8 @@ type SERVICE (like a production account of an experiment), GROUP (such as a team
 ordinary USER accounts (suitable for an individual). We will initially work with the root account 
 and USER accounts. 
 
-.. _rucio-rse1:
-
 Rucio Storage Elements 
-======================
+----------------------
 
 A Rucio Storage Element (RSE) is the construct by which Rucio addresses storage space. An RSE has 
 a unique identifier, a name (as a string), a storage type (DISK/TAPE), and a set of meta attributes such
@@ -106,10 +106,8 @@ as a list of supported protocols, e.g., file, https, gsiftp, xrootd, srm, etc.
 The definition of the protocol has a :command:`prefix` that, for example, may specify the root directory
 of the relevant storage area.  
 
-.. _rucio-rsep:
-
 RSE with Posix protocol
-=======================
+-----------------------
 
 We start with a simple case defining an RSE with file/posix protocol on the main 
 :file:`lsst-dbb-rucio.ncsa.illinois.edu` server itself. 
@@ -196,10 +194,8 @@ of the existing fie replicas for a regsitered file::
         +-----------+------------+------------+-----------+----------------------------------------------------------------------------------------------+
 
 
-.. _rucio-rseg:
-
 RSE with gsiftp protocol
-========================
+------------------------
 
 In order to demonstrate a more generally usable, accessible Rucio storage element, we consider 
 an instance  based on gsiftp protocol. This RSE will support, for example, upload and download
@@ -259,10 +255,8 @@ The physical file name (PFN) of the replica in this RSE can be displayed with::
         | user.root | Calib05.fits | 5.825 kB   | cbf8eff3  | NCSA_DATADISK: gsiftp://lsst-dbb-fts1.ncsa.illinois.edu:2811/usr/local/data/user/root/ab/38/Calib05.fits |
         +-----------+--------------+------------+-----------+----------------------------------------------------------------------------------------------------------+
 
-.. _rucio-client:
-
 Rucio Client Installation
-=========================
+-------------------------
 
 While the main Rucio server :file:`lsst-dbb-rucio.ncsa.illinois.edu` runs the central web application and numerous Rucio daemons
 (and the supporting database in our testbed), we would like to verify that a system serving as a Rucio client can function 
@@ -315,9 +309,101 @@ from our Nebula instance proceeds::
         Files that cannot be downloaded :             0
 
 
+Current View
+------------
+
+We find that the ATLAS project had made very good progress in packaging and organizing the software 
+for other projects to use (e.g., software available by standard means, 
+copious Read The Docs style documentation, etc) and we were also able to obtain assistance 
+from teams in the community in the U.S. that are using Rucio (thanks to University of Chicago).   
+A full measure of suitability of Rucio for LSST DM is dependent on the creation of 
+well-defined data backbone use cases (in progress). We also continue the examination of
+Rucio and its software ecosystem by taking a detailed look at FTS3 service and file transfer. 
 
 
+FTS3
+====
 
+FTS3 (main site http://fts.web.cern.ch , docs http://fts3-docs.web.cern.ch/fts3-docs/ )
+is the reliable file transfer service that is used by experiments at CERN (ATLAS, CMS, etc) to
+transfer data globally within the Worldwide LHC Computing Grid (WLCG). 
+As such it is a mature, tested service that transfers petabytes of data per month and 
+provides monitoring and summaries of transfers that have been submitted for management.
+FTS3 utilizes GFAL2 (https://dmc.web.cern.ch/projects/gfal-2/home) to implement transfers for numerous commonly used protocols with a single API. 
+
+Our evaluation of Rucio and its software ecosystem described in the section above 
+has recently continued with a focused examination 
+of FTS3, which services the file transfer aspects of data management with Rucio. 
+We have installed a running instance of FTS3 at NCSA and started initial testing of transfers. 
+We have set up the configuration so that collaborators at CC-IN2P3 can also begin to 
+submit file transfer requests to the service. In this way NCSA & CC-IN2P3 will jointly 
+test FTS3 for suitability for managing NCSA/CC-IN2P3 file transfers in the future. 
+Discussions with the SciTokens effort (Jim Basney, Brian Bockelman, et al) are forthcoming.
+In a recent conference SciTokens reported success in utilizing capability-based 
+OAuth2 tokens with FTS3 to transfer files 
+over https protocol, and we are interested in this capability for the LSST DM context.
+
+
+IRODS
+=====
+
+The integrated Rule-Oriented Data System (iRODS) (https://irods.org) is open source data management software
+used by research organizations and government agencies worldwide. iRODS is released
+as a production-level distribution aimed at deployment in mission critical environments.
+
+The iRODS Consortium brings together businesses, research organizations, universities,
+and government agencies to ensure the sustainability of iRODS.
+The Consortium maintains and supports a commercial-grade distribution of iRODS.
+The iRODS Consortium fields a team of software developers, application engineers,
+and support staff housed at RENCI at the University of North Carolina at Chapel Hill.
+
+In 2015 we examined iRODS for data/file management features (captured in a set of issues
+DM-2439, DM-2441, DM-2442, DM-2572, DM-2692). We found interesting the 
+core competencies:
+
+* iRODS implements data virtualization, allowing access to distributed storage assets under a unified logical namespace,
+* iRODS automates data workflows, with a rule engine that permits any action to be initiated by any trigger on any server or client in the Zone.
+
+The specific scenarios that we set up in testing were 
+
+* implementing a rule for automatic replication to remote sites following upload of data into iRODS
+* enforcing a rule to detect and repair file corruption (good copy on one site replacing corrupted copy on another) on a regular cadence 
+
+Globus
+=================================
+
+Globus is a leading provider of secure, reliable research data management services.
+Amongst the capabilities  it enables are the ability to transfer files reliably,
+to share files with others, and to publish data.
+
+We have experience with the Globus cloud service ('globus online'/GO) and Globus Connect
+in development scenarios and in first prototypes, e.g., of disaster recovery. 
+GO endpoints such a lsst#lsst-xfer and ncsa#Nearline have served as gateways 
+to development GPFS file systems and the NearLine tape archive on the Blue Waters system.
+In testing we have utilized globus online for file tranfers within Pegasus workflows.
+Globus online has been a useful tool for individual users to initiate a bulk file tranfer
+'interactively'/through a web interface. Such transfers are launched into the background
+and a user can monitor and be updated with email on the status of the transfer. 
+
+
+Grid Community Toolkit
+======================
+
+The Grid Community Forum (GridCF) (https://gridcf.org) is a community
+organized to provide support for core grid software.  The GridCF attempts to support
+a software stack christened the Grid Community Toolkit (GCT).  The GCT is an
+open-source fork of the Globus Toolkit created by the Globus Alliance.
+The official git repository for the Grid Community Toolkit is at
+https://github.com/gridcf/gct .
+
+The support for open source Globus Toolkit by the Globus Alliance ended as of January 2018. 
+We have significant experience in the use of open source Globus toolikit
+over a number of years.  This included running globus-gridftp-server's in front of project storage 
+elements as well as utilizing pools of globus-gridftp-server's provided at HPC sites 
+as NCSA, SDSC, TACC, NERSC, 
+FermiGrid, etc. Use of globus-url-copy on the command line allows for customization 
+of parameters such as the 
+number of threads, tcp windows size, etc., and enables high performance file transfers. 
 
 .. Make in-text citations with: :cite:`bibkey`.
 
